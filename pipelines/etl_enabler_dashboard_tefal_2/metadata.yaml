@@ -1,0 +1,286 @@
+blocks:
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    data_provider: mysql
+    data_provider_profile: dashboard_gmv
+    dbt: {}
+    disable_query_preprocessing: false
+    export_write_policy: append
+    file_path: data_loaders/updated_at2_tefal.sql
+    file_source:
+      path: data_loaders/updated_at2_tefal.sql
+    limit: 1000
+    use_raw_sql: true
+  downstream_blocks:
+  - join_table
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: sql
+  name: updated_at2_tefal
+  retry_config: null
+  status: failed
+  timeout: null
+  type: data_loader
+  upstream_blocks: []
+  uuid: updated_at2_tefal
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    data_provider: mysql
+    data_provider_profile: dashboard_gmv
+    dbt: {}
+    disable_query_preprocessing: false
+    export_write_policy: append
+    file_path: data_loaders/meta_promo_tefal.sql
+    file_source:
+      path: data_loaders/meta_promo_tefal.sql
+    limit: 1000
+    use_raw_sql: true
+  downstream_blocks:
+  - meta_promo_2_tefal
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: sql
+  name: meta_promo_tefal
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_loader
+  upstream_blocks: []
+  uuid: meta_promo_tefal
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    data_provider: mysql
+    data_provider_profile: dashboard_gmv
+    export_write_policy: append
+    file_path: transformers/meta_promo_2_tefal.py
+    file_source:
+      path: transformers/meta_promo_2_tefal.py
+  downstream_blocks:
+  - join_table
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: meta_promo_2_tefal
+  retry_config: null
+  status: executed
+  timeout: null
+  type: transformer
+  upstream_blocks:
+  - meta_promo_tefal
+  uuid: meta_promo_2_tefal
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    data_provider: mysql
+    data_provider_profile: dashboard_gmv
+    dbt: {}
+    disable_query_preprocessing: false
+    export_write_policy: append
+    file_path: data_loaders/meta_product_tefal_2.sql
+    file_source:
+      path: data_loaders/meta_product_tefal_2.sql
+    limit: 1000
+    use_raw_sql: true
+  downstream_blocks:
+  - meta_product_load
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: sql
+  name: meta_product_tefal_2
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_loader
+  upstream_blocks: []
+  uuid: meta_product_tefal_2
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - join_table
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: meta_product_load
+  retry_config: null
+  status: executed
+  timeout: null
+  type: transformer
+  upstream_blocks:
+  - meta_product_tefal_2
+  uuid: meta_product_load
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks:
+  - table_platform
+  - table_users
+  - table_shipping
+  - table_product
+  - table_main
+  - payment_table
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: join_table
+  retry_config: null
+  status: executed
+  timeout: null
+  type: transformer
+  upstream_blocks:
+  - updated_at2_tefal
+  - meta_promo_2_tefal
+  - meta_product_load
+  uuid: join_table
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: table_main
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - join_table
+  uuid: table_main
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    file_path: data_exporters/table_product.py
+    file_source:
+      path: data_exporters/table_product.py
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: table_product
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - join_table
+  uuid: table_product
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: table_shipping
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - join_table
+  uuid: table_shipping
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: table users
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - join_table
+  uuid: table_users
+- all_upstream_blocks_executed: true
+  color: null
+  configuration:
+    file_path: data_exporters/table_platform.py
+    file_source:
+      path: data_exporters/table_platform.py
+  downstream_blocks:
+  - data_delete_sqlalchemy
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: table_platform
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - join_table
+  uuid: table_platform
+- all_upstream_blocks_executed: true
+  color: null
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: payment_table
+  retry_config: null
+  status: executed
+  timeout: null
+  type: data_exporter
+  upstream_blocks:
+  - join_table
+  uuid: payment_table
+- all_upstream_blocks_executed: true
+  color: blue
+  configuration: {}
+  downstream_blocks: []
+  executor_config: null
+  executor_type: local_python
+  has_callback: false
+  language: python
+  name: data_delete_sqlalchemy
+  retry_config: null
+  status: executed
+  timeout: null
+  type: custom
+  upstream_blocks:
+  - table_platform
+  uuid: data_delete_sqlalchemy
+cache_block_output_in_memory: false
+callbacks: []
+concurrency_config: {}
+conditionals: []
+created_at: '2024-12-16 04:53:33.426282+00:00'
+data_integration: null
+description: null
+executor_config: {}
+executor_count: 1
+executor_type: null
+extensions: {}
+name: etl_enabler_dashboard_tefal_2
+notification_config: {}
+remote_variables_dir: null
+retry_config: {}
+run_pipeline_in_one_process: false
+settings:
+  triggers: null
+spark_config: {}
+tags: []
+type: python
+uuid: etl_enabler_dashboard_tefal_2
+variables_dir: /home/src/mage_data/your_first_project
+widgets: []

@@ -108,7 +108,7 @@ blocks:
   language: python
   name: data_transform
   retry_config: null
-  status: updated
+  status: executed
   timeout: null
   type: transformer
   upstream_blocks:
@@ -118,7 +118,7 @@ blocks:
   - tokopedia_osa
   - lazada_osa
   uuid: data_transform
-- all_upstream_blocks_executed: false
+- all_upstream_blocks_executed: true
   color: null
   configuration: {}
   downstream_blocks: []
@@ -171,5 +171,5 @@ spark_config: {}
 tags: []
 type: python
 uuid: null_value
-variables_dir: /home/dikapc/.mage_data/your_first_project
+variables_dir: /home/src/mage_data/your_first_project
 widgets: []
