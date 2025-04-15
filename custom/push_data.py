@@ -5,19 +5,19 @@ if 'custom' not in globals():
  
 @custom  
 def transform_custom(*args, **kwargs): 
-    import requests  
+    import requests   
     import pprint   
-    import json      
+    import json       
     import hmac     
     import time   
     import hashlib       
     import requests     
-    import pprint    
+    import pprint     
     import pandas as pd    
     import json       
-    from urllib.parse import quote,urlencode      
+    from urllib.parse import quote,urlencode       
     import pandas as pd       
-    import requests  
+    import requests   
     import json     
     import datetime   
     def signature(partner_id, path, timestamp, access_token, shop_id, partner_key):  
@@ -262,7 +262,7 @@ def transform_custom(*args, **kwargs):
                 tracking_number_list.append(data_package_number_list[a:i])
                 a+=20
                 i+=20
-                j=j-20 
+                j=j-20  
                 if j<20:
                     i=i+j-20
             async def post_request(url,json):
@@ -343,7 +343,7 @@ def transform_custom(*args, **kwargs):
             while j>0: 
                 dump_list_order_sn.append(list_order[a:i])
                 a+=50
-                i+=50
+                i+=50 
                 j=j-50 
                 if j<50: 
                     i=i+j-50
@@ -390,7 +390,7 @@ def transform_custom(*args, **kwargs):
         def deleting_duplicate(self):
             from sqlalchemy import create_engine,text
             eng=create_engine('postgresql://orbiz_data:0rbiz123@192.168.33.182:5433/postgres') 
-            #delete past updated_at 
+            #delete past updated_at  
             with eng.connect() as engine: 
                 engine.execute(text('''delete from main_table mt where mt.id in (select id  from(select max(updated_at) over(partition by "_key") max_1,* from main_table )t
                 where updated_at<>max_1 )''')) 
@@ -401,7 +401,7 @@ def transform_custom(*args, **kwargs):
                 engine.execute(text('''delete from product_table st where st.id in (select id  from(select max(updated_at) over(partition by "product_id") max_1,* from product_table )t
                 where updated_at<>max_1 )'''))
                 engine.execute(text('''delete from platform_table st where st.id in (select id  from(select max(updated_at) over(partition by "store_id") max_1,* from platform_table )t
-                where updated_at<>max_1 )'''))
+                where updated_at<>max_1 )''')) 
                 
                 #delete duplicate  
                 engine.execute(text('''delete from main_table where id in (select id from(
@@ -425,8 +425,8 @@ def transform_custom(*args, **kwargs):
                 # engine.execute(text('''ALTER TABLE payment_table  ADD COLUMN id SERIAL PRIMARY KEY''')) 
                 # engine.execute(text('''alter table product_table  drop column id'''))  
                 # engine.execute(text('''ALTER TABLE product_table  ADD COLUMN id SERIAL PRIMARY KEY''')) 
-                print('duplicate fixed') 
-        def get_tracking_number(self):
+                print('duplicate fixed')  
+        def get_tracking_number(self): 
             try:
                 print('get_tracking_number....')
                 partner_id='2004863' 
@@ -437,7 +437,7 @@ def transform_custom(*args, **kwargs):
                 path='/api/v2/logistics/get_tracking_number'
                 data_tracking_number={}
                 self.get_access_token()
-                order_sn=self.list_order_sn 
+                order_sn=self.list_order_sn  
                 for j in order_sn:
                     
                     timest = int(time.time()) 
@@ -453,7 +453,7 @@ def transform_custom(*args, **kwargs):
                             try: 
                                 print('fail try')
                                 params={'order_sn':j}
-                                time.sleep(120)
+                                time.sleep(120)  
                                 self.get_access_token()
                                 
                                 timest=int(time.time())
@@ -462,7 +462,7 @@ def transform_custom(*args, **kwargs):
                                 response=requests.get(url,params=params).json()
                                 data_tracking_number[j]=response['response']['tracking_number']
                                 
-                                break
+                                break 
                             except:
                                 print(f'will retry for {i+1} times')
                     print(f'check_prog_tracking_num {self.start_time}: {round(len(data_tracking_number)/len(order_sn)*100,2)} %',end='\r')
@@ -490,9 +490,9 @@ def transform_custom(*args, **kwargs):
     import tqdm 
     import sqlalchemy
     from sqlalchemy import create_engine,text
-    str_start='2024/1/2' 
-    str_end='2025/4/14'    
-    local_timezone=pytz.timezone("Asia/Jakarta")
+    str_start='2024/3/25' 
+    str_end='2024/4/6'    
+    local_timezone=pytz.timezone("Asia/Jakarta") 
     # str_start=datetime.now(local_timezone).strftime('%Y/%m/%d')  
     # str_end=(datetime.now(local_timezone)+timedelta(days=1)).strftime('%Y/%m/%d')    
     start=datetime.strptime(str_start,'%Y/%m/%d')
@@ -507,7 +507,7 @@ def transform_custom(*args, **kwargs):
                 data_mar=shopee_api.data_invoice_list(str(get_start).split()[0].replace('-','/'),str(get_end).split()[0].replace('-','/'))
                 data_final=asyncio.run(shopee_api.get_data_all())
                 print('get_order_detail done !!')
-                print('get_data_payment done !')
+                print('get_data_payment done !') 
                 
             # except:
             #     for i in range(0,5):
@@ -528,7 +528,7 @@ def transform_custom(*args, **kwargs):
             #             print('retrying for next round')
                 engine=create_engine('postgresql://orbiz_data:0rbiz123@192.168.33.182:5433/postgres') 
             
-                with engine.connect() as conn:  
+                with engine.connect() as conn:   
                     with conn.begin(): 
                         key_gather=tuple(data_final['key'].to_list()) 
                         print(key_gather)
@@ -544,39 +544,39 @@ def transform_custom(*args, **kwargs):
                         existed=data_final[data_final['key'].isin(key_)]
                         existed.loc[:,'order_id']=existed['key'].map(order_id_map)
                         try :
-                            # query=text(f'delete from main_table where _key  in {key_gather}') 
-                            # result=conn.execute(query)  
-                            # query=text(f'delete from payment_table where order_id  in {order_id_}') 
-                            # result=conn.execute(query)
-                            # query=text(f'delete from users_table where order_id  in {order_id_}') 
-                            # result=conn.execute(query)
-                            # query=text(f'delete from users_table where order_id  in {order_id_}') 
-                            # result=conn.execute(query)
-                            existed.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True)
+                            existed.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True) 
                             existed['_date']=pd.to_datetime(existed['_date'],dayfirst=True)
                             existed.rename(columns={'order_sn':'invoice_ref_num'},inplace=True)
                             existed.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date'},inplace=True)
                             existed['store_id']=26
-                            existed.rename(columns={'discounted_price':'total_payment'},inplace=True)
+                            existed.rename(columns={'discounted_price':'total_payment'},inplace=True) 
                             existed['payment_before_discount_platform']=existed['total_payment']-existed['platform_discount']
-                            existed['final_payment']=None 
-                            existed['product_weight']=None 
+                            existed['final_payment']=None   
+                            existed['product_weight']=None
+                            existed['updated_at']=data_final['updated_at'].apply(lambda x:datetime.utcfromtimestamp(x).replace(tzinfo=pytz.utc).astimezone(local_timezone)) 
                             # print(existed['order_id'].to_list()) 
                                     # data_final['total_payment']=data_final['final_payment']*data_final['quantity']
-                            existed['updated_at']=data_final['updated_at'].apply(lambda x:datetime.utcfromtimestamp(x).replace(tzinfo=pytz.utc).astimezone(local_timezone))
+                            existed.loc[:,['_date','store_id','order_id','preorder_date','shop_id','no_resi','invoice_ref_num','product_id','_status','platform_id','payment_before_discount_platform','logistic_service','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time','sku_bi','sku_name','product_weight','_name','province','city','full_address','store_name','payment_ref_number','payment_date','gateway_name','promotion_id','warehouse_city']].to_sql('temp_updates',con=engine,if_exists="replace",index=False)
+                            conn.execute(text('update  main_table mt set "_date"=tt."_date","preorder_date"=tt."preorder_date","shop_id"=tt."shop_id","no_resi"=tt."no_resi",product_id=cast(tt.product_id as varchar),"_status"=tt."_status",platform_id=tt.platform_id,payment_before_discount_platform=tt.payment_before_discount_platform,platform_discount=tt.platform_discount,_key=tt._key,updated_at=tt.updated_at,quantity=tt.quantity,invoice_ref_num=tt.invoice_ref_num,total_payment=tt.total_payment,create_time=tt.create_time from temp_updates tt where mt.order_id=tt.order_id'))
+                            conn.execute(text('update  product_table pt set sku_bi=tt.sku_bi,sku_name=tt.sku_name,product_weight=cast(tt.product_weight as double precision),updated_at=tt.updated_at from temp_updates tt where pt.product_id=cast(tt.product_id as varchar)'))
+                            conn.execute(text('update  shipping_table st set warehouse_city=tt.warehouse_city,logistic_service=tt.logistic_service,updated_at=tt.updated_at from temp_updates tt where st.no_resi=tt.no_resi'))
+                            conn.execute(text('update  users_table ut set _name=tt._name,province=tt.province,city=tt.city,full_address=tt.full_address,updated_at=tt.updated_at from temp_updates tt where ut.order_id=tt.order_id'))
+                            conn.execute(text('update  platform_table pt set store_id=tt.store_id,store_name=tt.store_name,updated_at=tt.updated_at from temp_updates tt where pt.store_id=tt.store_id ')) 
+                            conn.execute(text('update  payment_table pt set payment_ref_number=tt.payment_ref_number,payment_date=tt.payment_date,gateway_name=tt.gateway_name,promotion_id=tt.promotion_id,updated_at=tt.updated_at from temp_updates tt where pt.order_id=tt.order_id'))
                             # existed.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].to_sql(name='main_table',index=False,con=engine,if_exists='append') 
                             # existed.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].to_sql(name='product_table',index=False,con=engine,if_exists='append')  
                             existed.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
-                            # existed.loc[:,['order_id','_name','province','city','full_address','updated_at']].to_sql(name='users_table',index=False,con=engine,if_exists='append')
-                            # existed.loc[:,['store_id','store_name','updated_at']].to_sql(name='platform_table',index=False,con=conn,if_exists='append')
-                            # existed.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type','updated_at']].to_sql(name='payment_table',index=False,con=engine,if_exists='append')
-                            print('existing uploaded!')
+                            # # existed.loc[:,['order_id','_name','province','city','full_address','updated_at']].to_sql(name='users_table',index=False,con=engine,if_exists='append')
+                            # # existed.loc[:,['store_id','store_name','updated_at']].to_sql(name='platform_table',index=False,con=conn,if_exists='append')
+                            # # existed.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type','updated_at']].to_sql(name='payment_table',index=False,con=engine,if_exists='append')
+                            print(f'data updated for {datetime.now()}!') 
                         except:
                             pass 
-                            print('no existing order_id')  
+                            print('no existing order_id')      
+                
  
                 with engine.connect() as conn: 
-                        with conn.begin() :   
+                        with conn.begin() :    
                                 query=text('select max(order_id) from main_table ')  
                                 result=conn.execute(query) 
                                 max_id=result.fetchall()   
@@ -601,9 +601,9 @@ def transform_custom(*args, **kwargs):
                                 data_final.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
                                 data_final.loc[:,['order_id','_name','province','city','full_address','updated_at']].to_sql(name='users_table',index=False,con=engine,if_exists='append')
                                 data_final.loc[:,['store_id','store_name','updated_at']].to_sql(name='platform_table',index=False,con=conn,if_exists='append')
-                                data_final.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].to_sql(name='payment_table',index=False,con=engine,if_exists='append')
+                                data_final.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].to_sql(name='payment_table',index=False,con=engine,if_exists='append') 
                                 print('data uploaded!!') 
                 shopee_api.deleting_duplicate()
-        start=start+timedelta(days=1) 
+        start=start+timedelta(days=1)  
 
     return print('done!')
