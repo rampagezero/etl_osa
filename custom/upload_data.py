@@ -6,18 +6,18 @@ if 'custom' not in globals():
 @custom  
 def transform_custom(*args, **kwargs):  
     import requests    
-    import pprint     
-    import json              
-    import hmac            
-    import time 
-    import hashlib                               
-    import requests        
     import pprint       
-    import pandas as pd                     
     import json                   
-    from urllib.parse import quote,urlencode               
-    import pandas as pd                   
-    import requests         
+    import hmac              
+    import time     
+    import hashlib                                   
+    import requests          
+    import pprint            
+    import pandas as pd                       
+    import json                    
+    from urllib.parse import quote,urlencode                  
+    import pandas as pd                    
+    import requests          
     import json          
     import datetime     
     def signature(partner_id, path, timestamp, access_token, shop_id, partner_key):  
@@ -111,13 +111,13 @@ def transform_custom(*args, **kwargs):
         def data_invoice_list(self,start_time,end_time):
             from zoneinfo import ZoneInfo 
             from datetime import timedelta
-            start_time=datetime.strptime(start_time,'%Y/%m/%d').replace(tzinfo=ZoneInfo('Asia/Jakarta'))
-            end_time=datetime.strptime(end_time,'%Y/%m/%d').replace(tzinfo=ZoneInfo('Asia/Jakarta'))
-            if end_time-start_time>timedelta(days=15):
-                return print('caution Error !  (Maximum days 15) ') 
-            else:
-                pass
-            start_time=int(start_time.timestamp())
+            # start_time=datetime.strptime(start_time,'%Y/%m/%d').replace(tzinfo=ZoneInfo('Asia/Jakarta'))
+            # end_time=datetime.strptime(end_time,'%Y/%m/%d').replace(tzinfo=ZoneInfo('Asia/Jakarta'))
+            # if end_time-start_time>timedelta(days=15):
+            #     return print('caution Error !  (Maximum days 15) ') 
+            # else:
+            #     pass
+            start_time=int(start_time.replace(tzinfo=ZoneInfo('Asia/Jakarta')).timestamp())
             self.start_time=start_time
             end_time=int(end_time.timestamp())
             path = "/api/v2/order/get_order_list"
@@ -126,6 +126,7 @@ def transform_custom(*args, **kwargs):
             sign=signature(self.partner_id,path,timest,self.access_token,self.shop_id,self.tmp_partner_key)
             url = f"{self.host}{path}?access_token={self.access_token}&partner_id={self.partner_id}&shop_id={self.shop_id}&sign={sign}&timestamp={timest}"
             list_order_sn=[]
+            print(start_time)
             if self.order_status_get!='':
                 params={'time_range_field':self.time_status, 
                 'time_from':start_time,
@@ -220,7 +221,7 @@ def transform_custom(*args, **kwargs):
                         data=await response.json()
                         return data
             async def get_order_details_bulky():
-                path = "/api/v2/order/get_order_detail"
+                path = "/api/v2/order/get_order_detail" 
                 timest = int(time.time())
                 sign=signature(self.partner_id,path,timest,self.access_token,self.shop_id,self.tmp_partner_key)
                 url = f"{self.host}{path}?access_token={self.access_token}&partner_id={self.partner_id}&shop_id={self.shop_id}&sign={sign}&timestamp={timest}"
@@ -246,100 +247,107 @@ def transform_custom(*args, **kwargs):
             else:
                 print(f'Total Order Detail:{len(dump)}')
                 print(f'Total Order Serial Number:{len(list_order)}')
-                print('some data missing') 
-            data_package_number_list=[]
-            for i in dump:
-                data_package_number_list.append(dict(('package_number',j['package_number']) for j in i['package_list']))
-            data_mapper_sn_pn=dict(( i['package_list'][0]['package_number'],i['order_sn'])for i in dump)
-            print(data_package_number_list)
-            a=0
-            i=20
-            j=len(data_package_number_list)
-            data_dump_tracking_number=[]
-            tracking_number_list=[]
-            while j>0:
-                # try:
-                tracking_number_list.append(data_package_number_list[a:i])
-                a+=20
-                i+=20
-                j=j-20  
-                if j<20: 
-                    i=i+j-20
-            async def post_request(url,json):
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url,json=json) as response:
-                        data=await response.json()
-                        return data
-            async def get_order_tracking_number():
-                self.get_access_token()  
-                path = "/api/v2/logistics/get_mass_tracking_number"
-                timest=int(time.time())
-                sign=signature(self.partner_id,path,timest,self.access_token,self.shop_id,self.tmp_partner_key)
-                url = f"{self.host}{path}?access_token={self.access_token}&partner_id={self.partner_id}&shop_id={self.shop_id}&sign={sign}&timestamp={timest}"
-                tasks=[post_request(url,{'package_list':tracking_number} )for tracking_number in tracking_number_list]
-                data=await asyncio.gather(*tasks)
-                return data
-            async def get_bulky_tracking_number():
-                data=await get_order_tracking_number()
-                result=[a for a in data]
-                return result 
-            data_dump_tracking_number=[]
-            test_dump=await get_bulky_tracking_number()
-            for i in test_dump:
-                data_dump_tracking_number.extend(i['response']['success_list'])
-            data_tracking_number=dict((i['package_number'],i['tracking_number']) for i in data_dump_tracking_number)
-            data_tn_mapper=dict((data_mapper_sn_pn[key],data_tracking_number[key]) for key in data_tracking_number)
-            data=pd.DataFrame(dump)[['order_sn','order_status']]
-            data_detail=pd.json_normalize(dump,'item_list',['payment_method','buyer_username','order_sn','pay_time','create_time','update_time','shipping_carrier','package_list',['recipient_address','name'],['recipient_address','state'],['recipient_address','city'],['recipient_address','full_address']])
-            data_final=pd.merge(data_detail,data,on='order_sn',how='left')
-            ## data preprocessing
-            # data_final['product_id']=np.where(data_final['model_id']==0,data_final['item_id'],data_final['model_id'])
-            data_final['no_resi']=data_final['order_sn'].map(data_tn_mapper)
-            # data_final['sku_name']=np.where(data_final['model_name']!='',data_final['item_name']+'-'+data_final['model_name'],data_final['item_name'])
-            # data_final['sku']=np.where(data_final['model_sku']=='',data_final['item_sku'],data_final['model_sku']) 
-             
-            # data_final['key']=data_final['order_sn'].astype('str')+'/'+data_final['promotion_id'].astype('str')+'/'+data_final['product_id'].astype('str') 
-        #  repair data!!! 
-            tz=ZoneInfo('Asia/Jakarta') 
-            data_final['pay_time']=data_final['pay_time'].apply(lambda x:datetime.fromtimestamp(x,tz=tz) if x!=None else 0)
-            data_final['create_time']=data_final['create_time'].apply(lambda x:datetime.fromtimestamp(x,tz=tz))
-            data_final['create_time']=pd.to_datetime(data_final['create_time']).dt.tz_localize(None)
-            data_final['date']=data_final['create_time'].apply(lambda x: datetime.strftime(x,'%d-%m-%Y'))
-            data_final['preorder_date']=None
-            if self.partner_id=='2004863':
-                data_final['platform_id']=6
-            order_status_map={'COMPLETED':690,'PROCESSED':430,'READY_TO_SHIP':401,'TO_CONFIRM_RECEIVE':601,'SHIPPED':500,'CANCELLED':15,'TO_RETURN':550,'UNPAID':103}
-            data_final['order_status']=data_final['order_status'].map(order_status_map)
-            # adding no_resi                task
-            data_tracking_info=self.get_tracking_info()
-            data_final['meta_wms']=None 
-            path = "/api/v2/shop/get_warehouse_detail" 
-            timest = int(time.time())
-            sign=signature(self.partner_id,path,timest,self.access_token,self.shop_id,self.tmp_partner_key)
-            url = f"{self.host}{path}?access_token={self.access_token}&partner_id={self.partner_id}&shop_id={self.shop_id}&sign={sign}&timestamp={timest}"
-            response=requests.get(url).json() 
-            try:
-                data_warehouse_detail=pd.json_normalize(response['response']) 
-                data_final['product_location_id']=data_final['product_location_id'].map(lambda x:x[0])
-                data_final=pd.merge(data_final,data_warehouse_detail,left_on='product_location_id',right_on='location_id',how='left')
-                data_final.rename(columns={'shipping_carrier':'logistic_service','city':'warehouse_city','sku':'sku_bi','weight':'product_weight','recipient_address.state':'province','recipient_address.name':'name','recipient_address.full_address':'full_address','recipient_address.city':'city','order_status':'status','update_time':'updated_at'},inplace=True)
-                data_final['store_id']=self.shop_id
-                data_final['store_name']=data_final['store_id'].map(shop_name_dict) 
-            except:
-                warehouse_json={'warehouse_id': 100175681, 'warehouse_name': 'warehouse1', 'location_id': 'IDZ', 'holiday_mode_state': 0, 'region': 'ID', 'state': 'DKI JAKARTA', 'city': 'KOTA JAKARTA TIMUR', 'district': 'CAKUNG', 'town': '', 'address': 'Pergudangan PT Alun Indah Blok D A1-7 Jl. Cakung Cilincing RT.3/RW.4, Cakung Bar., Kec. Cakung, Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta 13910', 'zipcode': '13910', 'address_id': 21757155, 'warehouse_type': 1}
-                data_warehouse_detail=pd.DataFrame.from_dict(warehouse_json,orient='index').T
-                data_final['product_location_id']='IDZ'
-                data_final=pd.merge(data_final,data_warehouse_detail,left_on='product_location_id',right_on='location_id',how='left')
-                data_final.rename(columns={'shipping_carrier':'logistic_service','city':'warehouse_city','sku':'sku_bi','weight':'product_weight','recipient_address.state':'province','recipient_address.name':'name','recipient_address.full_address':'full_address','recipient_address.city':'city','order_status':'status','update_time':'updated_at'},inplace=True)
-                data_final['store_id']=self.shop_id
-                data_final['store_name']=data_final['store_id'].map(shop_name_dict)  
+            if check_data_len==0:
+                data_package_number_list=[]
+                for i in dump:
+                    data_package_number_list.append(dict(('package_number',j['package_number']) for j in i['package_list']))
+                data_mapper_sn_pn=dict(( i['package_list'][0]['package_number'],i['order_sn'])for i in dump)
+                print(data_package_number_list)
+                a=0
+                i=20
+                j=len(data_package_number_list)
+                data_dump_tracking_number=[]
+                tracking_number_list=[]
+                while j>0:
+                    # try:
+                    tracking_number_list.append(data_package_number_list[a:i])
+                    a+=20
+                    i+=20
+                    j=j-20  
+                    if j<20: 
+                        i=i+j-20
+                async def post_request(url,json):
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(url,json=json) as response:
+                            data=await response.json()
+                            return data
+                async def get_order_tracking_number():
+                    self.get_access_token()  
+                    path = "/api/v2/logistics/get_mass_tracking_number"
+                    timest=int(time.time())
+                    sign=signature(self.partner_id,path,timest,self.access_token,self.shop_id,self.tmp_partner_key)
+                    url = f"{self.host}{path}?access_token={self.access_token}&partner_id={self.partner_id}&shop_id={self.shop_id}&sign={sign}&timestamp={timest}"
+                    tasks=[post_request(url,{'package_list':tracking_number} )for tracking_number in tracking_number_list]
+                    data=await asyncio.gather(*tasks)
+                    return data
+                async def get_bulky_tracking_number():
+                    data=await get_order_tracking_number()
+                    result=[a for a in data]
+                    return result 
+                data_dump_tracking_number=[]
+                test_dump=await get_bulky_tracking_number()
+                for i in test_dump:
+                    data_dump_tracking_number.extend(i['response']['success_list'])
+                data_tracking_number=dict((i['package_number'],i['tracking_number']) for i in data_dump_tracking_number)
+                data_tn_mapper=dict((data_mapper_sn_pn[key],data_tracking_number[key]) for key in data_tracking_number)
+                if len(dump)>0:
+                    data=pd.DataFrame(dump)[['order_sn','order_status']]
+                    data_detail=pd.json_normalize(dump,'item_list',['payment_method','buyer_username','order_sn','pay_time','create_time','update_time','shipping_carrier','package_list',['recipient_address','name'],['recipient_address','state'],['recipient_address','city'],['recipient_address','full_address']])
+                    data_final=pd.merge(data_detail,data,on='order_sn',how='left')
+                    ## data preprocessing
+                    # data_final['product_id']=np.where(data_final['model_id']==0,data_final['item_id'],data_final['model_id'])
+                    data_final['no_resi']=data_final['order_sn'].map(data_tn_mapper)
+                    # data_final['sku_name']=np.where(data_final['model_name']!='',data_final['item_name']+'-'+data_final['model_name'],data_final['item_name'])
+                    # data_final['sku']=np.where(data_final['model_sku']=='',data_final['item_sku'],data_final['model_sku']) 
+                    
+                    # data_final['key']=data_final['order_sn'].astype('str')+'/'+data_final['promotion_id'].astype('str')+'/'+data_final['product_id'].astype('str') 
+                #  repair data!!! 
+                    tz=ZoneInfo('Asia/Jakarta') 
+                    data_final['pay_time']=data_final['pay_time'].apply(lambda x:datetime.fromtimestamp(x,tz=tz) if x!=None else 0)
+                    data_final['create_time']=data_final['create_time'].apply(lambda x:datetime.fromtimestamp(x,tz=tz))
+                    data_final['create_time']=pd.to_datetime(data_final['create_time']).dt.tz_localize(None)
+                    data_final['update_time']=data_final['update_time'].apply(lambda x:datetime.fromtimestamp(x,tz=tz))
+                    data_final['update_time']=pd.to_datetime(data_final['update_time']).dt.tz_localize(None)
+                    data_final['date']=data_final['create_time'].apply(lambda x: datetime.strftime(x,'%d-%m-%Y'))
+                    data_final['preorder_date']=None
+                    if self.partner_id=='2004863':
+                        data_final['platform_id']=6
+                    order_status_map={'COMPLETED':690,'PROCESSED':430,'READY_TO_SHIP':401,'TO_CONFIRM_RECEIVE':601,'SHIPPED':500,'CANCELLED':15,'TO_RETURN':550,'UNPAID':103}
+                    data_final['order_status']=data_final['order_status'].map(order_status_map)
+                    # adding no_resi                task
+                    data_tracking_info=self.get_tracking_info()
+                    data_final['meta_wms']=None 
+                    path = "/api/v2/shop/get_warehouse_detail" 
+                    timest = int(time.time())
+                    sign=signature(self.partner_id,path,timest,self.access_token,self.shop_id,self.tmp_partner_key)
+                    url = f"{self.host}{path}?access_token={self.access_token}&partner_id={self.partner_id}&shop_id={self.shop_id}&sign={sign}&timestamp={timest}"
+                    response=requests.get(url).json() 
+                    try:
+                        data_warehouse_detail=pd.json_normalize(response['response']) 
+                        data_final['product_location_id']=data_final['product_location_id'].map(lambda x:x[0])
+                        data_final=pd.merge(data_final,data_warehouse_detail,left_on='product_location_id',right_on='location_id',how='left')
+                        data_final.rename(columns={'shipping_carrier':'logistic_service','city':'warehouse_city','sku':'sku_bi','weight':'product_weight','recipient_address.state':'province','recipient_address.name':'name','recipient_address.full_address':'full_address','recipient_address.city':'city','order_status':'status','update_time':'updated_at'},inplace=True)
+                        data_final['store_id']=self.shop_id
+                        data_final['store_name']=data_final['store_id'].map(shop_name_dict) 
+                    except:
+                        warehouse_json={'warehouse_id': 100175681, 'warehouse_name': 'warehouse1', 'location_id': 'IDZ', 'holiday_mode_state': 0, 'region': 'ID', 'state': 'DKI JAKARTA', 'city': 'KOTA JAKARTA TIMUR', 'district': 'CAKUNG', 'town': '', 'address': 'Pergudangan PT Alun Indah Blok D A1-7 Jl. Cakung Cilincing RT.3/RW.4, Cakung Bar., Kec. Cakung, Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta 13910', 'zipcode': '13910', 'address_id': 21757155, 'warehouse_type': 1}
+                        data_warehouse_detail=pd.DataFrame.from_dict(warehouse_json,orient='index').T
+                        data_final['product_location_id']='IDZ'
+                        data_final=pd.merge(data_final,data_warehouse_detail,left_on='product_location_id',right_on='location_id',how='left')
+                        data_final.rename(columns={'shipping_carrier':'logistic_service','city':'warehouse_city','sku':'sku_bi','weight':'product_weight','recipient_address.state':'province','recipient_address.name':'name','recipient_address.full_address':'full_address','recipient_address.city':'city','order_status':'status','update_time':'updated_at'},inplace=True)
+                        data_final['store_id']=self.shop_id
+                        data_final['store_name']=data_final['store_id'].map(shop_name_dict) 
+                else:
+                    data_final=pd.DataFrame(data=None)
+            else:
+                pass
             return data_final
         async def get_data_payment(self):
             time.sleep(1)
             import numpy as np
             from tqdm.notebook import tqdm
             self.get_access_token()  
-            a=0
+            a=0 
             dump=[]
             i=50
             list_order=self.list_order_sn
@@ -381,7 +389,7 @@ def transform_custom(*args, **kwargs):
                 dump_temp=await get_bulky_payment()
                 try:
                     for i in dump_temp:
-                        data_order=i['response']
+                        data_order=i['response'] 
                         data_payment_l.extend(data_order)
                     try_1=1
                 except:
@@ -391,7 +399,7 @@ def transform_custom(*args, **kwargs):
             
             data_payment=pd.json_normalize(data_payment_l,['escrow_detail','order_income','items'],[['escrow_detail','order_sn']])
             data_payment.rename(columns={'discounted_price':'total_payment'},inplace=True)
-            data_payment['product_id']=np.where(data_payment['model_id']==0,data_payment['item_id'],data_payment['model_id'])
+            data_payment['product_id']=np.where(data_payment['model_id']==0,data_payment['item_id'],data_payment['model_id']).astype('str')
             data_payment['sku_name']=np.where(data_payment['model_name']!='',data_payment['item_name']+'-'+data_payment['model_name'],data_payment['item_name'])
             data_payment['sku_bi']=np.where(data_payment['model_sku']=='',data_payment['item_sku'],data_payment['model_sku'])
             data_payment.rename(columns={'escrow_detail.order_sn':'order_sn'},inplace=True)
@@ -452,7 +460,7 @@ def transform_custom(*args, **kwargs):
                         url = f"{host}{path}?access_token={self.access_token}&partner_id={partner_id}&shop_id={shop_id}&sign={sign}&timestamp={timest}"
                         response=requests.get(url,params=params).json()
                         data_tracking_number[j]=response['response']['tracking_number']  
-                        
+                         
                     except:
                         for i in range(0,5): 
                             try: 
@@ -479,153 +487,225 @@ def transform_custom(*args, **kwargs):
             return None   
         async def get_data_all(self):
             data_order= await self.get_order_detail()
-            data_payment = await self.get_data_payment()
-            data_order['order_sn']=data_order['order_sn'].astype(str)   
-            data_payment['order_sn']=data_payment['order_sn'].astype(str)
-            data_order=data_order.drop_duplicates(subset='order_sn',keep='first')
-            data_final=pd.merge(data_payment,data_order,left_on='order_sn',right_on='order_sn',how='left',suffixes=('_x', '_y'))
+            if data_order.shape[0]>0:
+                data_payment = await self.get_data_payment()
+                data_order['order_sn']=data_order['order_sn'].astype(str)   
+                data_payment['order_sn']=data_payment['order_sn'].astype(str)
+                data_order=data_order.drop_duplicates(subset='order_sn',keep='first')
+                data_final=pd.merge(data_payment,data_order,left_on='order_sn',right_on='order_sn',how='left',suffixes=('_x', '_y'))
+            else:
+                data_final=pd.DataFrame(data=None)
             return data_final
-    import pytz 
+    import pytz  
     import asyncio
     from datetime import datetime 
     data_status_nmv=['']
     data_frame_final=pd.DataFrame() 
     from sqlalchemy import create_engine
-    engine=create_engine('postgresql://orbiz_data:0rbiz123@192.168.33.182:5433/postgres') 
+    engine=create_engine('postgresql://orbiz_data:0rbiz123@192.168.33.182:5433/postgres')  
     from datetime import timedelta
     import tqdm 
     import sqlalchemy
     from sqlalchemy import create_engine,text
-    stores_id=[26,33,31,67,100,96,65,27,28,94]
-    for store in stores_id:
-        # str_start='2025/5/9'  
-        # str_end='2025/5/10'      
-        local_timezone=pytz.timezone("Asia/Jakarta")  
-        str_start=(datetime.now(local_timezone)).strftime('%Y/%m/%d')       
-        str_end=(datetime.now(local_timezone)+timedelta(days=1)).strftime('%Y/%m/%d')       
-        start=datetime.strptime(str_start,'%Y/%m/%d') 
-        end=datetime.strptime(str_end,'%Y/%m/%d')
-        print(store)
-        while start<end:  
-            for i in data_status_nmv: 
-                # try: 
-                    shopee_api=ApiData('shopee',store,i,'update_time')
-                    get_start=start
-                    get_end=get_start+timedelta(days=1)
-                    print(f'getting data for :{get_start}-{get_end}') 
-                    data_mar=shopee_api.data_invoice_list(str(get_start).split()[0].replace('-','/'),str(get_end).split()[0].replace('-','/'))
-                    data_final=asyncio.run(shopee_api.get_data_all())
-                    print('get_order_detail done !!')
-                    print('get_data_payment done !') 
-                    engine=create_engine('postgresql://orbiz_data:0rbiz123@192.168.33.182:5433/postgres') 
-                    with engine.connect() as conn:   
-                        with conn.begin():  
-                            key_gather=tuple(data_final['key'].to_list()) 
-                            query=text(f'select order_id,_key from main_table where _key  in {key_gather}') 
-                            result=conn.execute(query)  
-                            stored_key=result.fetchall()
-                            key_=[j for i,j in stored_key]    
-                            order_id_=tuple([i for i,j in stored_key]) 
-                            order_id_map=dict((j,i)for i,j in stored_key) 
-                            print(order_id_map) 
-                            if len(order_id_map)>0: 
-                                local_timezone = pytz.timezone("Asia/Jakarta") 
-                                existed=data_final[data_final['key'].isin(key_)]
-                                invoice_existed=tuple(existed['order_sn'].to_list())
+    stores_id=[26,33,65,94,31,100,96,27,67,28]
+    data_json_mapping=[ 
+  {
+    "26": "Shopee Philips Lighting Official Shop",
+    "27": "Shopee Morin Official Shop",  
+    "28": "Shopee SKRINEER",
+    "31": "Shopee IMeal Official Shop",
+    "33": "Shopee Tefal Indonesia Official Shop",
+    "65": "Shopee FiberCreme Official Shop",
+    "67": "Shopee Fumakilla Indonesia Store",
+    "94": "Shopee Yeos",
+    "96": "Shopee WiZ Lighting ID",
+    "100": "Shopee Nabati Official Store"
+  }, 
+  {
+    "26": 30082703,
+    "27": 912133875,
+    "28": 13026781,
+    "31": 280207604,
+    "33": 179066421,
+    "65": 42345408,
+    "67": 1102188272,
+    "94": 334913120,
+    "96": 1309152862,
+    "100": 64601228
+  } ]
+# # ]   
+    done=0
+    while done!=1:
+        try:
+            for store in stores_id:
+                # str_start='2024/1/1'  
+                # str_end='2025/5/12' 
+                print(store)
+                store_id=data_json_mapping[1][str(store)]   
+                with engine.connect() as conn: 
+                    with conn.begin(): 
+                            get_date=engine.execute(text(f'''select max(_date) from main_table mt  left join tracking_info ti on mt.no_resi =ti.no_resi where shop_id='{store_id}' ''')).fetchall()
+                if get_date[0][0]==None:
+                    print('tag none')
+                    get_date=tuple([['2024/1/1,00:00:00']])
+                local_timezone=pytz.timezone("Asia/Jakarta")  
+                import datetime as dt
+                try:
+                    str_start=get_date[0][0].strftime('%Y/%m/%d,%H:%M:%S')    
+                except:
+                    str_start=get_date[0][0]
+                str_end=(datetime.now(local_timezone)).strftime('%Y/%m/%d')       
+                start=datetime.strptime(str_start,'%Y/%m/%d,%H:%M:%S') 
+                end=datetime.strptime(str_end,'%Y/%m/%d')
+                while start<end:  
+                    for i in data_status_nmv:  
+                            shopee_api=ApiData('shopee',store,i,'create_time')
+                            get_start=start
+                            get_end=get_start+timedelta(days=1)
+                            print(f'getting data for :{get_start}-{get_end}') 
+                            data_mar=shopee_api.data_invoice_list(get_start,get_end)
+                            data_final=asyncio.run(shopee_api.get_data_all())
+                            
+                            if data_final.shape[0]>0:
+                                print('get_order_detail done !!') 
+                                print('get_data_payment done !') 
+                                engine=create_engine('postgresql://orbiz_data:0rbiz123@192.168.33.182:5433/postgres') 
+                                # data_final['updated_at']=data_final['updated_at'].apply(lambda x:datetime.utcfromtimestamp(x).replace(tzinfo=pytz.utc).astimezone(local_timezone)) 
+                                with engine.connect() as conn:    
+                                    with conn.begin():  
+                                        key_gather=tuple(data_final['key'].to_list())
+                                        key_gather=tuple(data_final['key'].to_list())  if len(key_gather) > 1 else f"('{key_gather[0]}')"
+                                        query=text(f'select order_id,_key from main_table where _key  in {key_gather}') 
+                                        result=conn.execute(query)   
+                                        stored_key=result.fetchall()  
+                                        query=text(f'select max(updated_at) from main_table where _key  in {key_gather}') 
+                                        result_max_update=conn.execute(query).fetchall()
+                                        key_=[j for i,j in stored_key]    
+                                        order_id_=tuple([i for i,j in stored_key]) 
+                                        order_id_map=dict((j,i)for i,j in stored_key)  
+                                        print(order_id_map) 
+                                        if len(order_id_map)>0: 
+                                            local_timezone = pytz.timezone("Asia/Jakarta") 
+                                            existed=data_final[(data_final['key'].isin(key_))]
+                                            invoice_existed=tuple(existed['order_sn'].to_list()) 
+                                            invoice_existed=tuple(existed['order_sn'].to_list()) if len(invoice_existed) > 1 else f"('{invoice_existed[0]}')"
+                                            query_existed=text(f'select order_id from main_table where invoice_ref_num in {invoice_existed} and  _key not in {key_gather}')
+                                            query=conn.execute(query_existed).fetchall()
+                                            query=tuple([i[0] for i in query])
+                                            print(query)
+                                            if len(query)==1:
+                                                delete_unused_main_table=text(f'''delete from main_table where order_id in ('{query[0]}')''')
+                                                query_delete=conn.execute(delete_unused_main_table) 
+                                                delete_unused_payment_table=text(f'''delete from payment_table where order_id in ('{query[0]}')''')
+                                                query_delete=conn.execute(delete_unused_payment_table) 
+                                                delete_unused_temp_discount=text(f'''delete from temp_discount where order_id in ('{query[0]}')''')
+                                                query_delete=conn.execute(delete_unused_temp_discount) 
+                                            if len(query)>1:  
+                                                delete_unused_main_table=text(f'delete from main_table where order_id in {query}')
+                                                query_delete=conn.execute(delete_unused_main_table)
+                                                delete_unused_payment_table=text(f'delete from payment_table where order_id in {query}')
+                                                query_delete=conn.execute(delete_unused_payment_table)
+                                                delete_unused_temp_discount=text(f'delete from temp_discount where order_id in {query}')
+                                                query_delete=conn.execute(delete_unused_temp_discount)  
+                                            
+                                            existed['order_id']=existed['key'].map(order_id_map)
+                                            existed.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True) 
+                                            existed['_date']=pd.to_datetime(existed['_date'],dayfirst=True) 
+                                            existed.rename(columns={'order_sn':'invoice_ref_num'},inplace=True) 
+                                            existed.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date','discount_from_voucher_shopee':'discount_from_voucher_platform'},inplace=True) 
+                                            existed['store_id']=store
+                                            existed.rename(columns={'discounted_price':'total_payment'},inplace=True) 
+                                            existed['payment_before_discount_platform']=existed['total_payment']-existed['platform_discount'] 
+                                            existed['final_payment']=None    
+                                            existed['product_weight']=None  
+                                            
+                                            no_resi_list=tuple(existed['no_resi'].to_list()) 
+                                            no_resi_list=tuple(existed['no_resi'].to_list()) if len(no_resi_list) > 1 else f"('{no_resi_list[0]}')"
+                                            query=conn.execute(text(f'select no_resi from shipping_table where no_resi in {no_resi_list}'))
+                                            no_resi_data=[i[0] for i in query.fetchall()]
+                                        
+                                            not_existed_no_resi=list(filter(None, [i for i in existed['no_resi'].to_list() if i not in no_resi_data ] ))
+                                            existed.loc[existed['no_resi'].isin(not_existed_no_resi),['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].drop_duplicates('no_resi').to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
+                                            columns_1=['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price','order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type','store_id','store_name','store_name','updated_at','shop_id','_name','province','city','full_address','updated_at','invoice_ref_num','no_resi','meta_wms','warehouse_city','logistic_service','updated_at','_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time','product_id','sku_bi','sku_name','product_weight','updated_at']
+                                            existed=existed.loc[:,columns_1] 
+                                            existed.to_sql(name='temp_updates',con=engine,if_exists='replace',index=False,method='multi')
+                                            update_query=text('''update main_table t set _date=temp._date, preorder_date=temp.preorder_date,shop_id=temp.shop_id,order_id=temp.order_id,no_resi=temp.no_resi,product_id=cast(temp.product_id as varchar),_status=temp._status,platform_id=temp.platform_id,payment_before_discount_platform=temp.payment_before_discount_platform,final_payment=cast(temp.final_payment as int),updated_at=temp.updated_at,quantity=temp.quantity,invoice_ref_num=temp.invoice_ref_num,total_payment=temp.total_payment,create_time=temp.create_time from (select distinct _key as unique,* from temp_updates) temp where t._key=temp._key''')
+                                            delete_main=conn.execute(update_query)
+                                            update_query=text('''update product_table pt set product_id=cast(temp.product_id as varchar),sku_bi=temp.sku_bi,sku_name=temp.sku_name,product_weight=cast(temp.product_weight as DOUBLE PRECISION),updated_at=temp.updated_at from (select distinct product_id,sku_bi,sku_name,product_weight,updated_at from temp_updates) temp where pt.product_id=cast(temp.product_id as varchar)''')
+                                            delete_product_id=conn.execute(update_query) 
+                                            update_query=text('''update shipping_table st set no_resi=temp.no_resi,meta_wms=temp.meta_wms,warehouse_city=temp.warehouse_city,logistic_service=temp.logistic_service,updated_at=temp.updated_at from (select distinct no_resi,meta_wms,warehouse_city,logistic_service,updated_at from temp_updates) temp where st.no_resi=temp.no_resi''')
+                                            delete_shipping=conn.execute(update_query) 
+                                            update_query=text('''update users_table ut set _name=temp._name,province=temp.province,city=temp.city,full_address=temp.full_address,updated_at=temp.updated_at from(select distinct _name,province,city,full_address,updated_at,invoice_ref_num from temp_updates) temp where ut.invoice_ref_num=temp.invoice_ref_num''')
+                                            delete_users=conn.execute(update_query)
+                                            update_query=text('''update platform_table pt set store_name=temp.store_name,shop_id=temp.shop_id from (select distinct store_id,store_name,shop_id from temp_updates) temp where  pt.store_id=temp.store_id''') 
+                                            delete_platform=conn.execute(update_query)
+                                            update_query=text('''update payment_table pt set payment_ref_number=temp.payment_ref_number,payment_date=temp.payment_date,gateway_name=temp.gateway_name,promotion_id=temp.promotion_id,promotion_type=temp.promotion_type from temp_updates temp where pt.order_id=temp.order_id''') 
+                                            delete_platform=conn.execute(update_query)
+                                            # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
+                                            update_query=text('''update temp_discount pt set order_id=temp.order_id,platform_discount=temp.platform_discount,seller_discount=temp.seller_discount,discount_from_coin=temp.discount_from_coin,discount_from_voucher_seller=temp.discount_from_voucher_seller,discount_from_voucher_platform=temp.discount_from_voucher_platform,original_price=temp.original_price,selling_price=temp.selling_price from temp_updates temp where pt.order_id=temp.order_id''') 
+                                            delete_temp_discount=conn.execute(update_query) 
+                                            update_query=text('''delete from shipping_table st where st.no_resi ='' ''')
+                                            delete_null=conn.execute(update_query)   
+                                            update_query=text(''' delete from shipping_table  where id in (select id from(
+                    select *,row_number() over (partition by "no_resi" order by "id" desc) rn from shipping_table)t where t.rn>1)''')
+                                            delete_null=conn.execute(update_query)  
+                                            # existed.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].to_sql(name='main_table',index=False,con=engine,if_exists='append') 
+                                            # existed.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].to_sql(name='product_table',index=False,con=engine,if_exists='append')  
+                                            # existed.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
+                                            # existed.loc[:,['_name','province','city','full_address','updated_at','invoice_ref_num']].to_sql(name='users_table',index=False,con=engine,if_exists='append')
+                                            # existed.loc[:,['store_id','store_name','store_name','updated_at','shop_id']].to_sql(name='platform_table',index=False,con=conn,if_exists='append') 
+                                            # existed.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].to_sql(name='payment_table',index=False,con=engine,if_exists='append') 
+                                            # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
+                                            print(f'data updated for {datetime.now()}!')
+                                        else:
+                                            pass  
                                 
-                                query_existed=text(f'select order_id from main_table where invoice_ref_num in {invoice_existed} and _key not in {key_gather}')
-                                query=conn.execute(query_existed).fetchall()
-                                query=tuple([i[0] for i in query])
-                                print(query)
-                                if len(query)==1:
-                                    delete_unused_main_table=text(f'''delete from main_table where order_id in ('{query[0]}')''')
-                                    query_delete=conn.execute(delete_unused_main_table) 
-                                    delete_unused_payment_table=text(f'''delete from payment_table where order_id in ('{query[0]}')''')
-                                    query_delete=conn.execute(delete_unused_payment_table) 
-                                    delete_unused_temp_discount=text(f'''delete from temp_discount where order_id in ('{query[0]}')''')
-                                    query_delete=conn.execute(delete_unused_temp_discount) 
-                                if len(query)>1: 
-                                    delete_unused_main_table=text(f'delete from main_table where order_id in {query}')
-                                    query_delete=conn.execute(delete_unused_main_table)
-                                    delete_unused_payment_table=text(f'delete from payment_table where order_id in {query}')
-                                    query_delete=conn.execute(delete_unused_payment_table)
-                                    delete_unused_temp_discount=text(f'delete from temp_discount where order_id in {query}')
-                                    query_delete=conn.execute(delete_unused_temp_discount) 
-                                
-                                existed['order_id']=existed['key'].map(order_id_map)
-                                existed.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True) 
-                                existed['_date']=pd.to_datetime(existed['_date'],dayfirst=True) 
-                                existed.rename(columns={'order_sn':'invoice_ref_num'},inplace=True) 
-                                existed.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date','discount_from_voucher_shopee':'discount_from_voucher_platform'},inplace=True) 
-                                existed['store_id']=store
-                                existed.rename(columns={'discounted_price':'total_payment'},inplace=True) 
-                                existed['payment_before_discount_platform']=existed['total_payment']-existed['platform_discount'] 
-                                existed['final_payment']=None    
-                                existed['product_weight']=None  
-                                existed['updated_at']=existed['updated_at'].apply(lambda x:datetime.utcfromtimestamp(x).replace(tzinfo=pytz.utc).astimezone(local_timezone))  
-                                columns_1=['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price','order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type','store_id','store_name','store_name','updated_at','shop_id','_name','province','city','full_address','updated_at','invoice_ref_num','no_resi','meta_wms','warehouse_city','logistic_service','updated_at','_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time','product_id','sku_bi','sku_name','product_weight','updated_at']
-                                existed=existed.loc[:,columns_1] 
-                                existed.to_sql(name='temp_updates',con=engine,if_exists='replace',index=False,method='multi')
-                                update_query=text('''update main_table t set _date=temp._date, preorder_date=temp.preorder_date,shop_id=temp.shop_id,order_id=temp.order_id,no_resi=temp.no_resi,product_id=temp.product_id,_status=temp._status,platform_id=temp.platform_id,payment_before_discount_platform=temp.payment_before_discount_platform,final_payment=cast(temp.final_payment as int),updated_at=temp.updated_at,quantity=temp.quantity,invoice_ref_num=temp.invoice_ref_num,total_payment=temp.total_payment,create_time=temp.create_time from (select distinct _key as unique,* from temp_updates) temp where t._key=temp._key''')
-                                delete_main=conn.execute(update_query)
-                                update_query=text('''update product_table pt set product_id=cast(temp.product_id as varchar),sku_bi=temp.sku_bi,sku_name=temp.sku_name,product_weight=cast(temp.product_weight as DOUBLE PRECISION),updated_at=temp.updated_at from (select distinct product_id,sku_bi,sku_name,product_weight,updated_at from temp_updates) temp where pt.product_id=cast(temp.product_id as varchar)''')
-                                delete_product_id=conn.execute(update_query) 
-                                update_query=text('''update shipping_table st set no_resi=temp.no_resi,meta_wms=temp.meta_wms,warehouse_city=temp.warehouse_city,logistic_service=temp.logistic_service,updated_at=temp.updated_at from (select distinct no_resi,meta_wms,warehouse_city,logistic_service,updated_at from temp_updates) temp where st.no_resi=temp.no_resi''')
-                                delete_shipping=conn.execute(update_query) 
-                                update_query=text('''update users_table ut set _name=temp._name,province=temp.province,city=temp.city,full_address=temp.full_address,updated_at=temp.updated_at from(select distinct _name,province,city,full_address,updated_at,invoice_ref_num from temp_updates) temp where ut.invoice_ref_num=temp.invoice_ref_num''')
-                                delete_users=conn.execute(update_query)
-                                update_query=text('''update platform_table pt set store_name=temp.store_name,updated_at=temp.updated_at,shop_id=temp.shop_id from (select distinct store_id,store_name, updated_at,shop_id from temp_updates) temp where  pt.store_id=temp.store_id''') 
-                                delete_platform=conn.execute(update_query)
-                                update_query=text('''update payment_table pt set payment_ref_number=temp.payment_ref_number,payment_date=temp.payment_date,gateway_name=temp.gateway_name,promotion_id=temp.promotion_id,promotion_type=temp.promotion_type from temp_updates temp where pt.order_id=temp.order_id''') 
-                                delete_platform=conn.execute(update_query)
-                                # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
-                                update_query=text('''update temp_discount pt set order_id=temp.order_id,platform_discount=temp.platform_discount,seller_discount=temp.seller_discount,discount_from_coin=temp.discount_from_coin,discount_from_voucher_seller=temp.discount_from_voucher_seller,discount_from_voucher_platform=temp.discount_from_voucher_platform,original_price=temp.original_price,selling_price=temp.selling_price from temp_updates temp where pt.order_id=temp.order_id''') 
-                                delete_temp_discount=conn.execute(update_query) 
-                                update_query=text('''delete from shipping_table st where st.no_resi ='' ''')
-                                delete_null=conn.execute(update_query)   
-                                # existed.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].to_sql(name='main_table',index=False,con=engine,if_exists='append') 
-                                # existed.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].to_sql(name='product_table',index=False,con=engine,if_exists='append')  
-                                # existed.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
-                                # existed.loc[:,['_name','province','city','full_address','updated_at','invoice_ref_num']].to_sql(name='users_table',index=False,con=engine,if_exists='append')
-                                # existed.loc[:,['store_id','store_name','store_name','updated_at','shop_id']].to_sql(name='platform_table',index=False,con=conn,if_exists='append') 
-                                # existed.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].to_sql(name='payment_table',index=False,con=engine,if_exists='append') 
-                                # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
-                                print(f'data updated for {datetime.now()}!')  
-                    
 
-                    with engine.connect() as exec: 
-                            with exec.begin() :    
-                                    query=text('select max(order_id) from main_table ')    
-                                    result=exec.execute(query) 
-                                    max_id=result.fetchall()    
-                                    max_id=max_id[0][0]+1  
-                                    if len(key_)!=0: 
-                                        data_final=data_final[~(data_final['key'].isin(key_))]
-                                    data_final.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True)
-                                    data_final['_date']=pd.to_datetime(data_final['_date'],dayfirst=True) 
-                                    data_final.rename(columns={'order_sn':'invoice_ref_num'},inplace=True)
-                                    data_final.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date','discount_from_voucher_shopee':'discount_from_voucher_platform'},inplace=True)
-                                    local_timezone = pytz.timezone("Asia/Jakarta")
-                                    data_final['order_id']=[max_id+i for i in data_final.index] 
-                                    data_final['store_id']=store
-                                    data_final.rename(columns={'discounted_price':'total_payment'},inplace=True)
-                                    data_final['payment_before_discount_platform']=data_final['total_payment']-data_final['platform_discount'] 
-                                    data_final['final_payment']=None 
-                                    data_final['product_weight']=None
-                                    # data_final['total_payment']=data_final['final_payment']*data_final['quantity']  
-                                    data_final['updated_at']=data_final['updated_at'].apply(lambda x:datetime.utcfromtimestamp(x).replace(tzinfo=pytz.utc).astimezone(local_timezone))
-                                    data_final.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].drop_duplicates('_key').to_sql(name='main_table',index=False,con=engine,if_exists='append') 
-                                    data_final.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].drop_duplicates('product_id').to_sql(name='product_table',index=False,con=engine,if_exists='append')  
-                                    data_final.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].drop_duplicates('no_resi').to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
-                                    data_final.loc[:,['_name','province','city','full_address','updated_at','invoice_ref_num']].drop_duplicates('invoice_ref_num').to_sql(name='users_table',index=False,con=engine,if_exists='append')
-                                    data_final.loc[:,['store_id','store_name','store_name','updated_at','shop_id']].drop_duplicates('store_id').to_sql(name='platform_table',index=False,con=engine,if_exists='append')
-                                    data_final.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].drop_duplicates('order_id').to_sql(name='payment_table',index=False,con=engine,if_exists='append')
-                                    data_final.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].drop_duplicates('order_id').to_sql(name='temp_discount',index=False,con=engine,if_exists='append') 
-                                    update_query=text('''delete from shipping_table st where st.no_resi ='' ''')
-                                    delete_null=exec.execute(update_query) 
-                                    print('data uploaded!!')  
-                                 
-            start=start+timedelta(days=1)     
+                                with engine.connect() as exec: 
+                                        with exec.begin() :    
+                                                query=text('select max(order_id) from main_table ')    
+                                                result=exec.execute(query) 
+                                                max_id=result.fetchall()  
+                                                max_id=max_id[0][0]+1  
+                                                if len(key_)!=0: 
+                                                    data_final=data_final[~(data_final['key'].isin(key_))]
+                                                data_final.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True)
+                                                data_final['_date']=pd.to_datetime(data_final['_date'],dayfirst=True) 
+                                                data_final.rename(columns={'order_sn':'invoice_ref_num'},inplace=True)
+                                                data_final.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date','discount_from_voucher_shopee':'discount_from_voucher_platform'},inplace=True)
+                                                local_timezone = pytz.timezone("Asia/Jakarta")
+                                                data_final['order_id']=[max_id+i for i in data_final.index] 
+                                                data_final['store_id']=store
+                                                data_final.rename(columns={'discounted_price':'total_payment'},inplace=True)
+                                                data_final['payment_before_discount_platform']=data_final['total_payment']-data_final['platform_discount'] 
+                                                data_final['final_payment']=None 
+                                                data_final['product_weight']=None 
+                                                # data_final['total_payment']=data_final['final_payment']*data_final['quantity']  
+                                                # product_id=data_final['product_id'].to_list()
+                                                # result_product_id=[i[0] for i in exec.execute(text(''' select product_id from product_table''')).fetchall()]
+                                                # not_existed=[i for i in product_id if i not in result_product_id]
+                                                # print(not_existed)
+                                                # if len(not_existed)>0:
+                                                #     data_final.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].drop_duplicates('product_id').to_sql(name='product_table',index=False,con=engine,if_exists='append')
+                                                data_final.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].drop_duplicates('_key').to_sql(name='main_table',index=False,con=engine,if_exists='append') 
+                                                data_final.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].drop_duplicates('no_resi').to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
+                                                data_final.loc[:,['_name','province','city','full_address','updated_at','invoice_ref_num']].drop_duplicates('invoice_ref_num').to_sql(name='users_table',index=False,con=engine,if_exists='append')
+                                                # data_final.loc[:,['store_id','store_name','store_name','updated_at','shop_id']].drop_duplicates('store_id').to_sql(name='platform_table',index=False,con=engine,if_exists='append')
+                                                data_final.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].drop_duplicates('order_id').to_sql(name='payment_table',index=False,con=engine,if_exists='append')
+                                                data_final.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].drop_duplicates('order_id').to_sql(name='temp_discount',index=False,con=engine,if_exists='append') 
+                                                update_query=text('''delete from shipping_table st where st.no_resi ='' ''')
+                                                delete_null=exec.execute(update_query) 
+                                                print('data uploaded!!')  
+                            else:
+                                pass
+                                        
+                    start=start+timedelta(days=1)     
+                print('tag')
+            done=1 
+        except Exception as e:  
+            print(f"An error occurred: {e}") 
+            done=0   
+        
         # shopee_api.deleting_duplicate()
 
     return print('done!') 

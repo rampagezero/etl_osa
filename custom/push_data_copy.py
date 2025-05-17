@@ -498,8 +498,8 @@ def transform_custom(*args, **kwargs):
     from sqlalchemy import create_engine,text
     stores_id=[33,26,31,67,100,96,65,27,28,94]
     for store in stores_id:
-        str_start='2025/5/9'  
-        str_end='2025/5/10'     
+        str_start='2024/1/1'  
+        str_end='2025/5/11'     
         local_timezone=pytz.timezone("Asia/Jakarta")  
         # str_start=(datetime.now(local_timezone)).strftime('%Y/%m/%d')     
         # str_end=(datetime.now(local_timezone)+timedelta(days=1)).strftime('%Y/%m/%d')      
