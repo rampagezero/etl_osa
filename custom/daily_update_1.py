@@ -526,7 +526,7 @@ def transform_custom(*args, **kwargs):
     "27": 912133875,
     "28": 13026781,
     "31": 280207604,
-    "33": 179066421,
+    "33": 179066421, 
     "65": 42345408,
     "67": 1102188272,
     "94": 334913120,
@@ -639,9 +639,8 @@ def transform_custom(*args, **kwargs):
                                             delete_users=conn.execute(update_query)
                                             update_query=text('''update platform_table pt set store_name=temp.store_name,shop_id=temp.shop_id from (select distinct store_id,store_name,shop_id from temp_updates) temp where  pt.store_id=temp.store_id''') 
                                             delete_platform=conn.execute(update_query)
-                                            # update_query=text('''update payment_table pt set payment_ref_number=temp.payment_ref_number,payment_date=temp.payment_date,gateway_name=temp.gateway_name,promotion_id=temp.promotion_id,promotion_type=temp.promotion_type from temp_updates temp where pt.order_id=temp.order_id''') 
-                                            # delete_platform=conn.execute(update_query)
-                                            
+                                            update_query=text('''update payment_table pt set payment_ref_number=temp.payment_ref_number,payment_date=temp.payment_date,gateway_name=temp.gateway_name,promotion_id=temp.promotion_id,promotion_type=temp.promotion_type from temp_updates temp where pt.order_id=temp.order_id''') 
+                                            delete_platform=conn.execute(update_query)
                                             # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
                                             update_query=text('''update temp_discount pt set order_id=temp.order_id,platform_discount=temp.platform_discount,seller_discount=temp.seller_discount,discount_from_coin=temp.discount_from_coin,discount_from_voucher_seller=temp.discount_from_voucher_seller,discount_from_voucher_platform=temp.discount_from_voucher_platform,original_price=temp.original_price,selling_price=temp.selling_price from temp_updates temp where pt.order_id=temp.order_id''') 
                                             delete_temp_discount=conn.execute(update_query) 

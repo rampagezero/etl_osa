@@ -70,7 +70,7 @@ def transform_custom(*args, **kwargs):
             print(f"Error generating signature: {e}") 
             return None   
     class ApiData: 
-        def __init__(self,platform,code,order_status,time_status):
+        def __init__(self,platform,code,order_status=None,time_status=None):
             import numpy as np
             import pandas as pd 
             from datetime import datetime
@@ -483,19 +483,6 @@ def transform_custom(*args, **kwargs):
         async def get_tracking_info(self):
             print('getting tracking info....',end='\r')
             list_order=self.list_order_sn
-            # a=0
-            # i=1
-            # j=len(list_order) #452
-            # dump_push_sn=[]
-            # while j>0:
-            #     push_sn=str(list_order[a:i]).replace('[','').replace("'",
-            #                                             "").replace(']','').replace(' ','') 
-            #     dump_push_sn.append(push_sn) 
-            #     a+=1
-            #     i+=1
-            #     j=j-50 
-            #     if j<50:
-            #         i=i+j-50
             async def get_requests(url,params):
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url,params=params) as response:
@@ -509,7 +496,7 @@ def transform_custom(*args, **kwargs):
                 tasks=[get_requests(url,{
                         'order_sn':push_sn
                     }) for push_sn in list_order]
-                result=await asyncio.gather(*tasks)
+                result=await asyncio.gather(*tasks) 
                 return result
             async def bundling_data():
                 data_orders=await get_order_tracking_bulky()
