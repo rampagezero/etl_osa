@@ -545,10 +545,13 @@ def transform_custom(*args, **kwargs):
                 store_id=data_json_mapping[1][str(store)]   
                 with engine.connect() as conn: 
                     with conn.begin(): 
-                            get_date=conn.execute(text(f'''select max(updated_at) from main_table  where shop_id='{store_id}' ''')).fetchall()
-                if get_date[0][0]==None:
+                       
+                        get_date=conn.execute(text(f'''select max(dp.updated_at) from detail_pricing dp join main_table mt on dp.order_id=mt.order_id   where shop_id='{store_id}' ''')).fetchall()
+                        
+                if get_date[0][0]==None :
                     print('tag none')
                     get_date=tuple([['2024/1/1,00:00:00']])
+                
                 local_timezone=pytz.timezone("Asia/Jakarta")  
                 import datetime as dt
                 try:
@@ -579,124 +582,19 @@ def transform_custom(*args, **kwargs):
                                         query=text(f'select order_id,_key from main_table where _key  in {key_gather}') 
                                         result=conn.execute(query)   
                                         stored_key=result.fetchall()  
-                                        query=text(f'select max(updated_at) from main_table where _key  in {key_gather}') 
-                                        result_max_update=conn.execute(query).fetchall()
                                         key_=[j for i,j in stored_key]    
                                         order_id_=tuple([i for i,j in stored_key]) 
                                         order_id_map=dict((j,i)for i,j in stored_key)  
-                                        print(order_id_map) 
-                                        if len(order_id_map)>0: 
-                                            local_timezone = pytz.timezone("Asia/Jakarta") 
-                                            existed=data_final[(data_final['key'].isin(key_))]
-                                            invoice_existed=tuple(existed['order_sn'].to_list()) 
-                                            invoice_existed=tuple(existed['order_sn'].to_list()) if len(invoice_existed) > 1 else f"('{invoice_existed[0]}')"
-                                            query_existed=text(f'select order_id from main_table where invoice_ref_num in {invoice_existed} and  _key not in {key_gather}')
-                                            query=conn.execute(query_existed).fetchall()
-                                            query=tuple([i[0] for i in query])
-                                            print(query)
-                                            if len(query)==1:
-                                                delete_unused_main_table=text(f'''delete from main_table where order_id in ('{query[0]}')''')
-                                                query_delete=conn.execute(delete_unused_main_table) 
-                                                delete_unused_payment_table=text(f'''delete from payment_table where order_id in ('{query[0]}')''')
-                                                query_delete=conn.execute(delete_unused_payment_table) 
-                                                delete_unused_temp_discount=text(f'''delete from temp_discount where order_id in ('{query[0]}')''')
-                                                query_delete=conn.execute(delete_unused_temp_discount) 
-                                            if len(query)>1:  
-                                                delete_unused_main_table=text(f'delete from main_table where order_id in {query}')
-                                                query_delete=conn.execute(delete_unused_main_table)
-                                                delete_unused_payment_table=text(f'delete from payment_table where order_id in {query}')
-                                                query_delete=conn.execute(delete_unused_payment_table)
-                                                delete_unused_temp_discount=text(f'delete from temp_discount where order_id in {query}')
-                                                query_delete=conn.execute(delete_unused_temp_discount)  
-                                            
+                                        if len(order_id_map)>0:
+                                            existed=data_final[data_final['key'].isin(key_)]
                                             existed['order_id']=existed['key'].map(order_id_map)
-                                            existed.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True) 
-                                            existed['_date']=pd.to_datetime(existed['_date'],dayfirst=True) 
-                                            existed.rename(columns={'order_sn':'invoice_ref_num'},inplace=True) 
-                                            existed.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date','discount_from_voucher_shopee':'discount_from_voucher_platform'},inplace=True) 
-                                            existed['store_id']=store
-                                            existed.rename(columns={'discounted_price':'total_payment'},inplace=True) 
-                                            existed['payment_before_discount_platform']=existed['total_payment']-existed['platform_discount'] 
-                                            existed['final_payment']=None    
-                                            existed['product_weight']=None  
-                                            
-                                            no_resi_list=tuple(existed['no_resi'].to_list()) 
-                                            no_resi_list=tuple(existed['no_resi'].to_list()) if len(no_resi_list) > 1 else f"('{no_resi_list[0]}')"
-                                            query=conn.execute(text(f'select no_resi from shipping_table where no_resi in {no_resi_list}'))
-                                            no_resi_data=[i[0] for i in query.fetchall()]
-                                        
-                                            not_existed_no_resi=list(filter(None, [i for i in existed['no_resi'].to_list() if i not in no_resi_data ] ))
-                                            existed.loc[existed['no_resi'].isin(not_existed_no_resi),['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].drop_duplicates('no_resi').to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
-                                            columns_1=['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price','order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type','store_id','store_name','store_name','updated_at','shop_id','_name','province','city','full_address','updated_at','invoice_ref_num','no_resi','meta_wms','warehouse_city','logistic_service','updated_at','_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time','product_id','sku_bi','sku_name','product_weight','updated_at']
-                                            existed=existed.loc[:,columns_1] 
-                                            existed.to_sql(name='temp_updates',con=engine,if_exists='replace',index=False,method='multi')
-                                            update_query=text('''update main_table t set _date=temp._date, preorder_date=temp.preorder_date,shop_id=temp.shop_id,order_id=temp.order_id,no_resi=temp.no_resi,product_id=cast(temp.product_id as varchar),_status=temp._status,platform_id=temp.platform_id,payment_before_discount_platform=temp.payment_before_discount_platform,final_payment=cast(temp.final_payment as int),updated_at=temp.updated_at,quantity=temp.quantity,invoice_ref_num=temp.invoice_ref_num,total_payment=temp.total_payment,create_time=temp.create_time from (select distinct _key as unique,* from temp_updates) temp where t._key=temp._key''')
-                                            delete_main=conn.execute(update_query)
-                                            update_query=text('''update product_table pt set product_id=cast(temp.product_id as varchar),sku_bi=temp.sku_bi,sku_name=temp.sku_name,product_weight=cast(temp.product_weight as DOUBLE PRECISION),updated_at=temp.updated_at from (select distinct product_id,sku_bi,sku_name,product_weight,updated_at from temp_updates) temp where pt.product_id=cast(temp.product_id as varchar)''')
-                                            delete_product_id=conn.execute(update_query) 
-                                            update_query=text('''update shipping_table st set no_resi=temp.no_resi,meta_wms=temp.meta_wms,warehouse_city=temp.warehouse_city,logistic_service=temp.logistic_service,updated_at=temp.updated_at from (select distinct no_resi,meta_wms,warehouse_city,logistic_service,updated_at from temp_updates) temp where st.no_resi=temp.no_resi''')
-                                            delete_shipping=conn.execute(update_query) 
-                                            update_query=text('''update users_table ut set _name=temp._name,province=temp.province,city=temp.city,full_address=temp.full_address,updated_at=temp.updated_at from(select distinct _name,province,city,full_address,updated_at,invoice_ref_num from temp_updates) temp where ut.invoice_ref_num=temp.invoice_ref_num''')
-                                            delete_users=conn.execute(update_query)
-                                            update_query=text('''update platform_table pt set store_name=temp.store_name,shop_id=temp.shop_id from (select distinct store_id,store_name,shop_id from temp_updates) temp where  pt.store_id=temp.store_id''') 
-                                            delete_platform=conn.execute(update_query)
-                                            update_query=text('''update payment_table pt set payment_ref_number=temp.payment_ref_number,payment_date=temp.payment_date,gateway_name=temp.gateway_name,promotion_id=temp.promotion_id,promotion_type=temp.promotion_type from temp_updates temp where pt.order_id=temp.order_id''') 
-                                            delete_platform=conn.execute(update_query)
-                                            # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
-                                            update_query=text('''update temp_discount pt set order_id=temp.order_id,platform_discount=temp.platform_discount,seller_discount=temp.seller_discount,discount_from_coin=temp.discount_from_coin,discount_from_voucher_seller=temp.discount_from_voucher_seller,discount_from_voucher_platform=temp.discount_from_voucher_platform,original_price=temp.original_price,selling_price=temp.selling_price from temp_updates temp where pt.order_id=temp.order_id''') 
-                                            delete_temp_discount=conn.execute(update_query) 
-                                            update_query=text('''delete from shipping_table st where st.no_resi ='' ''')
-                                            delete_null=conn.execute(update_query)   
-                                            update_query=text(''' delete from shipping_table  where id in (select id from(
-                    select *,row_number() over (partition by "no_resi" order by "id" desc) rn from shipping_table)t where t.rn>1)''')
-                                            delete_null=conn.execute(update_query)  
-                                            # existed.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].to_sql(name='main_table',index=False,con=engine,if_exists='append') 
-                                            # existed.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].to_sql(name='product_table',index=False,con=engine,if_exists='append')  
-                                            # existed.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
-                                            # existed.loc[:,['_name','province','city','full_address','updated_at','invoice_ref_num']].to_sql(name='users_table',index=False,con=engine,if_exists='append')
-                                            # existed.loc[:,['store_id','store_name','store_name','updated_at','shop_id']].to_sql(name='platform_table',index=False,con=conn,if_exists='append') 
-                                            # existed.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].to_sql(name='payment_table',index=False,con=engine,if_exists='append') 
-                                            # existed.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].to_sql(name='temp_discount',index=False,con=engine,if_exists='append')
-                                            print(f'data updated for {datetime.now()}!')
+                                            existed[['order_id','ams_commission_fee','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_shopee','selling_price','original_price','total_payment','seller_discount','shopee_discount','quantity','updated_at']].to_sql('detail_pricing',con=conn,index=False,if_exists='append')
+                                            print(f'data detail discount updated for {get_start}!')
                                         else:
                                             pass  
                                 
 
-                                with engine.connect() as exec: 
-                                        with exec.begin() :    
-                                                query=text('select max(order_id) from main_table ')    
-                                                result=exec.execute(query) 
-                                                max_id=result.fetchall()  
-                                                max_id=max_id[0][0]+1  
-                                                if len(key_)!=0: 
-                                                    data_final=data_final[~(data_final['key'].isin(key_))]
-                                                data_final.rename(columns={'date':'_date','key':'_key','status':'_status','store_id':'shop_id',},inplace=True)
-                                                data_final['_date']=pd.to_datetime(data_final['_date'],dayfirst=True) 
-                                                data_final.rename(columns={'order_sn':'invoice_ref_num'},inplace=True)
-                                                data_final.rename(columns={'buyer_username':'_name','shopee_discount':'platform_discount','payment_method':'gateway_name','pay_time':'payment_date','discount_from_voucher_shopee':'discount_from_voucher_platform'},inplace=True)
-                                                local_timezone = pytz.timezone("Asia/Jakarta")
-                                                data_final['order_id']=[max_id+i for i in data_final.index] 
-                                                data_final['store_id']=store
-                                                data_final.rename(columns={'discounted_price':'total_payment'},inplace=True)
-                                                data_final['payment_before_discount_platform']=data_final['total_payment']-data_final['platform_discount'] 
-                                                data_final['final_payment']=None 
-                                                data_final['product_weight']=None 
-                                                # data_final['total_payment']=data_final['final_payment']*data_final['quantity']  
-                                                # product_id=data_final['product_id'].to_list()
-                                                # result_product_id=[i[0] for i in exec.execute(text(''' select product_id from product_table''')).fetchall()]
-                                                # not_existed=[i for i in product_id if i not in result_product_id]
-                                                # print(not_existed)
-                                                # if len(not_existed)>0:
-                                                #     data_final.loc[:,['product_id','sku_bi','sku_name','product_weight','updated_at']].drop_duplicates('product_id').to_sql(name='product_table',index=False,con=engine,if_exists='append')
-                                                data_final.loc[:,['_date','preorder_date','shop_id','order_id','no_resi','product_id','_status','platform_id','payment_before_discount_platform','platform_discount','_key','final_payment','updated_at','quantity','invoice_ref_num','total_payment','create_time']].drop_duplicates('_key').to_sql(name='main_table',index=False,con=engine,if_exists='append') 
-                                                data_final.loc[:,['no_resi','meta_wms','warehouse_city','logistic_service','updated_at']].drop_duplicates('no_resi').to_sql(name='shipping_table',index=False,con=engine,if_exists='append')
-                                                data_final.loc[:,['_name','province','city','full_address','updated_at','invoice_ref_num']].drop_duplicates('invoice_ref_num').to_sql(name='users_table',index=False,con=engine,if_exists='append')
-                                                # data_final.loc[:,['store_id','store_name','store_name','updated_at','shop_id']].drop_duplicates('store_id').to_sql(name='platform_table',index=False,con=engine,if_exists='append')
-                                                data_final.loc[:,['order_id','payment_ref_number','payment_date','gateway_name','promotion_id','promotion_type']].drop_duplicates('order_id').to_sql(name='payment_table',index=False,con=engine,if_exists='append')
-                                                data_final.loc[:,['order_id','platform_discount','seller_discount','discount_from_coin','discount_from_voucher_seller','discount_from_voucher_platform','original_price','selling_price']].drop_duplicates('order_id').to_sql(name='temp_discount',index=False,con=engine,if_exists='append') 
-                                                update_query=text('''delete from shipping_table st where st.no_resi ='' ''')
-                                                delete_null=exec.execute(update_query) 
-                                                print('data uploaded!!')  
+                                
                             else:
                                 pass
                                         
